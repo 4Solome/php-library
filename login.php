@@ -1,52 +1,55 @@
 <?php
-include 'db.php';
+// login.php
 session_start();
+include('db.php'); // This file should contain your database connection logic
 
-if ($_SERVER["REQUEST_METHOD"] == "POST") {
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $username = $_POST['username'];
     $password = $_POST['password'];
 
-    $sql = "SELECT id, username, password FROM users WHERE username = ?";
+    // Query to check if user exists and fetch user data
+    $query = "SELECT * FROM users WHERE username = ? AND password = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param('ss', $username, $password);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $user = $result->fetch_assoc();
 
-    if ($stmt = $conn->prepare($sql)) {
-        $stmt->bind_param("s", $username);
-        $stmt->execute();
-        $stmt->store_result();
+    if ($user) {
+        $_SESSION['user_id'] = $user['id'];
+        $_SESSION['username'] = $user['username'];
+        $_SESSION['role'] = $user['role'];
 
-        if ($stmt->num_rows == 1) {
-            $stmt->bind_result($id, $username, $hashed_password);
-            $stmt->fetch();
-
-            if (password_verify($password, $hashed_password)) {
-                $_SESSION['username'] = $username;
-                header("Location: welcome.php");
-            } else {
-                echo "Invalid password.";
-            }
-        } else {
-            echo "No account found with that username.";
+        // Redirect based on role
+        if ($user['role'] == 'admin') {
+            header("Location: add_book.php");
+        } elseif ($user['role'] == 'student') {
+            header("Location: dashboard.php");
         }
-
-        $stmt->close();
+        exit();
+    } else {
+        echo "Invalid username or password.";
     }
-
-    $conn->close();
 }
 ?>
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h2>Login</h2>
-    <form method="post" action="login.php">
-        <label for="username">Username:</label><br>
-        <input type="text" id="username" name="username" required><br>
-        <label for="password">Password:</label><br>
-        <input type="password" id="password" name="password" required><br><br>
-        <input type="submit" value="Login">
-    </form>
+    <div class="container">
+        <h2>Login</h2>
+        <form action="login_process.php" method="post">
+            <input type="text" name="username" placeholder="Username" required>
+            <input type="password" name="password" placeholder="Password" required>
+            <input type="submit" value="Login">
+        </form>
+        <a href="register.php">Don't have an account? Register here</a>
+    </div>
 </body>
 </html>
